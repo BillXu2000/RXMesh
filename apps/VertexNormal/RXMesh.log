@@ -1,0 +1,47 @@
+[13:55:13] [trace] RXMesh: input= ../../input/sphere3.obj
+[13:55:13] [trace] RXMesh: output_folder= /home/bx2k/taichi/MeshTaichi/RXMesh/output/
+[13:55:13] [trace] RXMesh: num_run= 10
+[13:55:13] [trace] RXMesh: device_id= 0
+[13:55:13] [trace] RXMesh: Total number of device: 1
+[13:55:13] [trace] RXMesh: Using device Number: 0
+[13:55:13] [trace] RXMesh: Device name: GeForce RTX 2060
+[13:55:13] [trace] RXMesh: Compute Capability: 7.5
+[13:55:13] [trace] RXMesh: Total amount of global memory (MB): 5912.1
+[13:55:13] [trace] RXMesh: 30 Multiprocessors, 64 CUDA Cores/MP: 1920 CUDA Cores
+[13:55:13] [trace] RXMesh: GPU Max Clock rate: 1680.0 MHz (1.68 GHz)
+[13:55:13] [trace] RXMesh: Memory Clock rate: 7001.0 Mhz
+[13:55:13] [trace] RXMesh: Memory Bus Width:  192-bit
+[13:55:13] [trace] RXMesh: Peak Memory Bandwidth: 336.048000(GB/s)
+[13:55:13] [trace] RXMesh: Kernels compiled for compute capability: 750
+[13:55:13] [trace] RXMesh: Reading ../../input/sphere3.obj
+[13:55:13] [trace] RXMesh: import_obj() #Verts= 386 
+[13:55:13] [trace] RXMesh: import_obj() #Faces= 768 
+[13:55:13] [trace] RXMesh: import_obj() #Tex= 0 
+[13:55:13] [trace] RXMesh: import_obj() #FacesTex= 768 
+[13:55:13] [trace] RXMesh: import_obj() #Normal= 0 
+[13:55:13] [trace] RXMesh: import_obj() #FacesNormal= 768 
+[13:55:13] [trace] RXMesh: Patcher: num_patches = 2
+[13:55:13] [trace] RXMesh: Patcher: patches_size = 512
+[13:55:13] [trace] RXMesh: Patcher: num_components = 1
+[13:55:13] [trace] RXMesh: Patcher: Num lloyd run = 1
+[13:55:13] [trace] RXMesh: Patcher: Parallel patches construction time = 0.601856 (ms) and 0.601856 (ms/lloyd_run)
+[13:55:13] [trace] RXMesh: Patcher: max_patch_size= 500, min_patch_size= 438, avg_patch_size= 469
+[13:55:13] [trace] RXMesh: Patcher: number internal ribbon faces = 170
+[13:55:13] [trace] RXMesh: Patcher: number external ribbon faces = 170 (22.14%)
+[13:55:13] [trace] RXMesh: #Vertices = 386, #Faces= 768, #Edges= 1152
+[13:55:13] [trace] RXMesh: Input is  edge manifold
+[13:55:13] [trace] RXMesh: Input is  closed
+[13:55:13] [trace] RXMesh: max valence = 6
+[13:55:13] [trace] RXMesh: max edge incident faces = 2
+[13:55:13] [trace] RXMesh: max face adjacent faces = 3
+[13:55:13] [trace] RXMesh: per-patch maximum edges references= 1536
+[13:55:13] [trace] RXMesh: per-patch maximum  faces references= 1504
+[13:55:13] [trace] RXMesh: per-patch maximum face count (owned)= 500 (418)
+[13:55:13] [trace] RXMesh: per-patch maximum edge count (owned) = 768 (604)
+[13:55:13] [trace] RXMesh: per-patch maximum vertex count (owned)= 269 (199)
+[13:55:13] [trace] RXMesh: Total storage = 0.031136 Mb
+[13:55:13] [trace] RXMesh: RXMeshStatic::check_shared_memory() query_prototype with FV required shared memory = 7152 (dynamic) +  0 (static) = 7152 (bytes) and 30 registers
+[13:55:13] [trace] RXMesh: RXMeshStatic::check_shared_memory() available total shared memory per block = 49152 (bytes) = 48 (Kb)
+[13:55:13] [trace] RXMesh: RXMesh::calc_shared_memory() launching 2 blocks with 256 threads on the device
+[13:55:13] [trace] RXMesh: vertex_normal_rxmesh() vertex normal kernel took 0.0107392 (ms)
+[13:55:13] [trace] RXMesh: vertex_normal_hardwired() vertex normal kernel took 0.0066431994 (ms)
