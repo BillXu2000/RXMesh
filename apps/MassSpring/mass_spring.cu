@@ -6,6 +6,7 @@
 #include "rxmesh/util/report.h"
 #include "rxmesh/util/timer.h"
 #include "mass_spring_kernel.cuh"
+#include <iostream>
 
 struct arg
 {
@@ -20,8 +21,9 @@ struct arg
 } Arg;
 
 template <typename T, uint32_t patchSize>
-void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&   rxmesh_static,
-                          const std::vector<std::vector<T>>& Verts)
+void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
+                        const std::vector<std::vector<T>>&        Verts,
+                        const std::vector<std::vector<uint32_t>>& Faces)
 {
     using namespace RXMESH;
     constexpr uint32_t blockThreads = 256;
@@ -48,12 +50,49 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&   rxmesh_static,
     ox.init(Verts.size(), 3u, RXMESH::LOCATION_ALL);
 	x.init(Verts.size(), 3u, RXMESH::LOCATION_ALL);
     // fill in the coordinates
+    float mi[3], ma[3];
     for (uint32_t i = 0; i < Verts.size(); ++i) {
         for (uint32_t j = 0; j < Verts[i].size(); ++j) {
-            ox(i, j) = Verts[i][j];
-			x (i, j) = Verts[i][j];
+            if (i == 0) {
+                mi[j] = ma[j] = Verts[i][j];
+            }
+            mi[j] = min(mi[j], Verts[i][j]);
+            ma[j] = max(ma[j], Verts[i][j]);
         }
     }
+    for (uint32_t i = 0; i < Verts.size(); ++i) {
+        for (uint32_t j = 0; j < Verts[i].size(); ++j) {
+            ox(i, j) = x(i, j) = (Verts[i][j] - mi[j]) / (ma[1] - mi[1]);
+        }
+    }
+    auto print_momentum = [&]() {
+        float sum[4];
+        memset(sum, 0, sizeof(sum));
+        for (int i = 0; i < Verts.size(); i++) {
+            for (int j = 0; j < Verts[i].size(); j++) {
+                float product = 1;
+                for (int k = 0; k < 4; k++) {
+                    sum[k] += product;
+                    product *= x(i, j);
+                }
+            }
+        }
+        std::cerr << "momentum:\t";
+        for (int i = 0; i < 4; i++) {
+            std::cerr << sum[i] << "\t";
+        }
+        std::cerr << "\n";
+    };
+    auto print_obj = [&](std::string path) {
+        std::fstream out(path, std::fstream::out);
+        for (int i = 0; i < Verts.size(); i++) {
+            out << "v " << x(i, 0) << " " << x(i, 1) << " " << x(i, 2) << "\n";
+        }
+        for (auto f : Faces) {
+            out << "f " << f[0] + 1 << " " << f[1] + 1 << " " << f[2] + 1 << "\n";
+        }
+    };
+    print_momentum();
     // move the coordinates to device
     ox.move(RXMESH::HOST, RXMESH::DEVICE);
 		x.move(RXMESH::HOST, RXMESH::DEVICE);
@@ -71,36 +110,25 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&   rxmesh_static,
     TestData td;
     td.test_name = "MassSpring";
 
-    float vn_time = 0;
+    float mass = 1.0 / Verts.size();
+    std::cerr << mass << "\n";
     for (uint32_t itr = 0; itr < Arg.num_run; ++itr) {
-        GPUTimer timer;
-        timer.start();
-
-        compute_mass_spring<T, blockThreads>
-            <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
-                rxmesh_static.get_context(), ox, x, v);
-
-        timer.stop();
-        CUDA_ERROR(cudaDeviceSynchronize());
-        CUDA_ERROR(cudaGetLastError());
-        CUDA_ERROR(cudaProfilerStop());
-        td.time_ms.push_back(timer.elapsed_millis());
-        vn_time += timer.elapsed_millis();
-        
-        for (uint32_t i = 0; i < Verts.size(); ++i) {
-            if (x(i, 1) < bottom_y) {
-                x(i, 1) = bottom_y;
-                v(i, 1) = -v(i, 1);
-            }
-        
-            x(i, 0) += v(i, 0) * dt;
-            x(i, 1) += v(i, 1) * dt;
-            x(i, 2) += v(i, 2) * dt;
+        for (int j = 0; j < 100; j++) {
+            compute_mass_spring<T, blockThreads>
+                <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
+                    rxmesh_static.get_context(), ox, x, v, mass);
         }
+            
+        /*advance<T, blockThreads>
+            <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
+                rxmesh_static.get_context(), ox, x, v);*/
+        /*x.move(RXMESH::DEVICE, RXMESH::HOST);
+        print_momentum();
+        print_obj("./results/" + std::to_string(itr) + ".obj");*/
     }
+    x.move(RXMESH::DEVICE, RXMESH::HOST);
+    print_momentum();
 
-    RXMESH_TRACE("mass_spring_rxmesh() mass spring kernel took {} (ms)",
-                 vn_time / Arg.num_run);
 
  
     // Release allocation
@@ -147,7 +175,7 @@ TEST(Apps, MassSpring)
     RXMeshStatic rxmesh_static(Faces, Verts, Arg.sort, false);
 
     //*** RXMesh Impl
-    mass_spring_rxmesh(rxmesh_static, Verts);
+    mass_spring_rxmesh(rxmesh_static, Verts, Faces);
 }
 
 int main(int argc, char** argv)
