@@ -106,6 +106,9 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
     LaunchBox<blockThreads> launch_box;
     rxmesh_static.prepare_launch_box(RXMESH::Op::VV, launch_box);
 
+    LaunchBox<blockThreads> ev_launch_box;
+    rxmesh_static.prepare_launch_box(RXMESH::Op::EV, ev_launch_box);
+
 
     TestData td;
     td.test_name = "MassSpring";
@@ -114,7 +117,13 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
     std::cerr << mass << "\n";
     for (uint32_t itr = 0; itr < Arg.num_run; ++itr) {
         for (int j = 0; j < 100; j++) {
-            compute_mass_spring<T, blockThreads>
+            /*compute_mass_spring<T, blockThreads>
+                <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
+                    rxmesh_static.get_context(), ox, x, v, mass);*/
+            ev_mass_spring<T, blockThreads>
+                <<<ev_launch_box.blocks, blockThreads, ev_launch_box.smem_bytes_dyn>>>(
+                    rxmesh_static.get_context(), ox, x, v, mass);
+            advect<T, blockThreads>
                 <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
                     rxmesh_static.get_context(), ox, x, v, mass);
         }
@@ -122,9 +131,9 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
         /*advance<T, blockThreads>
             <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
                 rxmesh_static.get_context(), ox, x, v);*/
-        /*x.move(RXMESH::DEVICE, RXMESH::HOST);
+        x.move(RXMESH::DEVICE, RXMESH::HOST);
         print_momentum();
-        print_obj("./results/" + std::to_string(itr) + ".obj");*/
+        print_obj("./results/" + std::to_string(itr) + ".obj");
     }
     x.move(RXMESH::DEVICE, RXMESH::HOST);
     print_momentum();
