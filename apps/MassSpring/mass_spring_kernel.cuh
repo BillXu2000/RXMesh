@@ -19,7 +19,7 @@ __constant__ float  stiffness = std::stof(std::getenv("__stiffness"));
 __constant__ float  dt = std::stof(std::getenv("__dt"));
 */
 __constant__ float  stiffness = 1e1;
-__constant__ float  dt = 2e-4;
+__constant__ float  dt = 2e-5;
 
 float& __host__ __device__ vis(float3 &x, int i) {
     return ((float*)(&x))[i];

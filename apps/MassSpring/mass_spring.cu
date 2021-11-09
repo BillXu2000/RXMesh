@@ -18,6 +18,8 @@ struct arg
     int         argc;
     bool        shuffle = false;
     bool        sort = false;
+    bool ev = false;
+    bool vv = false;
 } Arg;
 
 template <typename T, uint32_t patchSize>
@@ -117,12 +119,14 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
     std::cerr << mass << "\n";
     for (uint32_t itr = 0; itr < Arg.num_run; ++itr) {
         for (int j = 0; j < 100; j++) {
-            /*compute_mass_spring<T, blockThreads>
-                <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
-                    rxmesh_static.get_context(), ox, x, v, mass);*/
-            ev_mass_spring<T, blockThreads>
-                <<<ev_launch_box.blocks, blockThreads, ev_launch_box.smem_bytes_dyn>>>(
-                    rxmesh_static.get_context(), ox, x, v, mass);
+            if (Arg.vv)
+                compute_mass_spring<T, blockThreads>
+                    <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
+                        rxmesh_static.get_context(), ox, x, v, mass);
+            if (Arg.ev) 
+                ev_mass_spring<T, blockThreads>
+                    <<<ev_launch_box.blocks, blockThreads, ev_launch_box.smem_bytes_dyn>>>(
+                        rxmesh_static.get_context(), ox, x, v, mass);
             advect<T, blockThreads>
                 <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
                     rxmesh_static.get_context(), ox, x, v, mass);
@@ -131,9 +135,9 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
         /*advance<T, blockThreads>
             <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
                 rxmesh_static.get_context(), ox, x, v);*/
-        x.move(RXMESH::DEVICE, RXMESH::HOST);
+        /*x.move(RXMESH::DEVICE, RXMESH::HOST);
         print_momentum();
-        print_obj("./results/" + std::to_string(itr) + ".obj");
+        print_obj("./results/" + std::to_string(itr) + ".obj");*/
     }
     x.move(RXMESH::DEVICE, RXMESH::HOST);
     print_momentum();
@@ -233,8 +237,11 @@ int main(int argc, char** argv)
         if (cmd_option_exists(argv, argc + argv, "-s")) {
             Arg.shuffle = true;
         }
-        if (cmd_option_exists(argv, argc + argv, "-p")) {
-            Arg.sort = true;
+        if (cmd_option_exists(argv, argc + argv, "-ev")) {
+            Arg.ev = true;
+        }
+        if (cmd_option_exists(argv, argc + argv, "-vv")) {
+            Arg.vv = true;
         }
     }
 
