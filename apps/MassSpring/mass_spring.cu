@@ -12,7 +12,7 @@ struct arg
 {
     std::string obj_file_name = STRINGIFY(INPUT_DIR) "sphere3.obj";
     std::string output_folder = STRINGIFY(OUTPUT_DIR);
-    uint32_t    num_run = 1;
+    uint32_t    num_run = 2;
     uint32_t    device_id = 0;
     char**      argv;
     int         argc;
@@ -28,7 +28,7 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
                         const std::vector<std::vector<uint32_t>>& Faces)
 {
     using namespace RXMESH;
-    constexpr uint32_t blockThreads = 256;
+    constexpr uint32_t blockThreads = 512;
 
     // Report
     Report report("MassSpring_RXMesh");
@@ -67,7 +67,7 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
             ox(i, j) = x(i, j) = (Verts[i][j] - mi[j]) / (ma[1] - mi[1]);
         }
     }
-    auto print_momentum = [&]() {
+    auto print_momentum = [&](std::ostream &out=std::cerr) {
         float sum[4];
         memset(sum, 0, sizeof(sum));
         for (int i = 0; i < Verts.size(); i++) {
@@ -79,11 +79,10 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
                 }
             }
         }
-        std::cerr << "momentum:\t";
         for (int i = 0; i < 4; i++) {
-            std::cerr << sum[i] << "\t";
+            out << sum[i] << "\t";
         }
-        std::cerr << "\n";
+        out << "\n";
     };
     auto print_obj = [&](std::string path) {
         std::fstream out(path, std::fstream::out);
@@ -141,6 +140,10 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
     }
     x.move(RXMESH::DEVICE, RXMESH::HOST);
     print_momentum();
+    {
+        std::fstream out("momentum.log", std::fstream::out);
+        print_momentum(out);
+    }
 
 
  
