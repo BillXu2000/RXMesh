@@ -21,15 +21,21 @@ struct arg
     bool ev = false;
     bool vv = false;
     bool implicit = false;
+    int blockThreads = 512;
 } Arg;
 
-template <typename T, uint32_t patchSize>
+template <uint32_t blockThreads>
+class hackBT {
+public:
+    hackBT() {}
+};
+
+template <typename T, uint32_t patchSize, uint32_t blockThreads>
 void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
                         const std::vector<std::vector<T>>&        Verts,
-                        const std::vector<std::vector<uint32_t>>& Faces)
+                        const std::vector<std::vector<uint32_t>>& Faces, hackBT<blockThreads> hack)
 {
     using namespace RXMESH;
-    constexpr uint32_t blockThreads = 512;
 
     // Report
     Report report("MassSpring_RXMesh");
@@ -47,10 +53,11 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
     report.add_member("input_order", order);
     report.add_member("blockThreads", blockThreads);
 
-    RXMeshAttribute<T> ox, x, r0, p0, f, mul_ans, v;
+    RXMeshAttribute<T> ox, x, r0, p0, f, mul_ans, v, m;
     ox.set_name("ox");
 	x.set_name("x");
     v.set_name("v");
+    m.set_name("m");
 	r0.set_name("r0");
 	p0.set_name("p0");
 	f.set_name("f");
@@ -60,6 +67,7 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
 	x.init(Verts.size(), 3u, RXMESH::LOCATION_ALL);
 	f.init(Verts.size(), 3u, RXMESH::LOCATION_ALL);
     v.init(Verts.size(), 3u, RXMESH::LOCATION_ALL);
+    m.init(Verts.size(), 1u, RXMESH::LOCATION_ALL);
     if (Arg.implicit) {
         r0.init(Verts.size(), 3u, RXMESH::LOCATION_ALL);
         p0.init(Verts.size(), 3u, RXMESH::LOCATION_ALL);
@@ -76,17 +84,19 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
             ma[j] = max(ma[j], Verts[i][j]);
         }
     }
+    float mass = 1.0 / Verts.size();
     for (uint32_t i = 0; i < Verts.size(); ++i) {
         for (uint32_t j = 0; j < Verts[i].size(); ++j) {
             ox(i, j) = x(i, j) = (Verts[i][j] - mi[j]) / (ma[1] - mi[1]);
         }
+        m(i, 0) = mass;
     }
     auto print_momentum = [&](std::ostream &out=std::cerr) {
         float sum[4];
         memset(sum, 0, sizeof(sum));
         for (int i = 0; i < Verts.size(); i++) {
             for (int j = 0; j < Verts[i].size(); j++) {
-                float product = 1;
+                float product = i;
                 for (int k = 0; k < 4; k++) {
                     sum[k] += product;
                     product *= x(i, j);
@@ -111,6 +121,7 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
     // move the coordinates to device
     ox.move(RXMESH::HOST, RXMESH::DEVICE);
     x.move(RXMESH::HOST, RXMESH::DEVICE);
+    m.move(RXMESH::HOST, RXMESH::DEVICE);
     // velocity
 
     // launch box
@@ -123,7 +134,6 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
 
     TestData td;
     td.test_name = "MassSpring";
-    float mass = 1.0 / Verts.size();
     int n = Verts.size();
     std::cerr << mass << "\n";
 
@@ -212,7 +222,7 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
                             rxmesh_static.get_context(), ox, x, f, mass);
                 advect<T, blockThreads>
                     <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(n, 
-                        rxmesh_static.get_context(), x, v, f, mass);
+                        rxmesh_static.get_context(), x, v, f, m.get_pointer(0x02));
             }
         }
             
@@ -240,6 +250,7 @@ void mass_spring_rxmesh(RXMESH::RXMeshStatic<patchSize>&          rxmesh_static,
     r0.release();
     f.release();
     mul_ans.release();
+    m.release();
 
     // Finalize report
     report.add_test(td);
@@ -280,7 +291,18 @@ TEST(Apps, MassSpring)
     RXMeshStatic rxmesh_static(Faces, Verts, Arg.sort, false);
 
     //*** RXMesh Impl
-    mass_spring_rxmesh(rxmesh_static, Verts, Faces);
+    if (Arg.blockThreads == 128) {
+        mass_spring_rxmesh(rxmesh_static, Verts, Faces, hackBT<128>());
+    }
+    else if (Arg.blockThreads == 256) {
+        mass_spring_rxmesh(rxmesh_static, Verts, Faces, hackBT<256>());
+    }
+    else if (Arg.blockThreads == 512) {
+        mass_spring_rxmesh(rxmesh_static, Verts, Faces, hackBT<512>());
+    }
+    else if (Arg.blockThreads == 1024) {
+        mass_spring_rxmesh(rxmesh_static, Verts, Faces, hackBT<1024>());
+    }
 }
 
 int main(int argc, char** argv)
@@ -337,6 +359,9 @@ int main(int argc, char** argv)
         }
         if (cmd_option_exists(argv, argc + argv, "-implicit")) {
             Arg.implicit = true;
+        }
+        if (cmd_option_exists(argv, argc + argv, "-block")) {
+            Arg.blockThreads = atoi(get_cmd_option(argv, argv + argc, "-block"));
         }
     }
 

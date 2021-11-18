@@ -141,14 +141,14 @@ __launch_bounds__(blockThreads, 6) __global__
     static void advect(int n, const RXMESH::RXMeshContext      context,
                                     RXMESH::RXMeshAttribute<T>       x,
                                     RXMESH::RXMeshAttribute<T>       v,
-                                    RXMESH::RXMeshAttribute<T>       f, float mass)
+                                    RXMESH::RXMeshAttribute<T>       f, float *m)
 {
     int p = blockIdx.x * blockDim.x + threadIdx.x;
     if (p >= n || x(p, 1) < 0.1) return;
     v(p, 1) += 9.8 * dt;
     for (int i = 0; i < 3; i++) {
+        v(p, i) += dt * f(p, i) / m[p];
         f(p, i) = 0;
-        v(p, i) += dt * f(p, i) / mass;
         x(p, i) += dt * v(p, i);
     }
 }
