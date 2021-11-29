@@ -50,8 +50,8 @@ __device__ __inline__ T update_step(
                  t[1] * t[1] * Q[1][1] - 1);
     T p = (delta + std::sqrt(dis)) / (Q[0][0] + Q[0][1] + Q[1][0] + Q[1][1]);
     T tp[2];
-    tp[0] = t[0] - p;
-    tp[1] = t[1] - p;
+    tp[0] = t[0] - 1;
+    tp[1] = t[1] - 1;
     const Vector<3, T> n = (x0 * Q[0][0] + x1 * Q[1][0]) * tp[0] +
                            (x0 * Q[0][1] + x1 * Q[1][1]) * tp[1];
     T cond[2];
@@ -128,4 +128,64 @@ __launch_bounds__(blockThreads) __global__ static void relax_ptp_rxmesh(
 
     query_block_dispatcher<Op::VV, blockThreads>(context, geo_lambda,
                                                  in_active_set, true);
+}
+
+
+namespace bx2k {
+    template <typename T, uint32_t blockThreads>
+    __launch_bounds__(blockThreads) __global__ static void relax_ptp_rxmesh(
+        const RXMESH::RXMeshContext             context,
+        const RXMESH::RXMeshAttribute<T>        coords,
+        RXMESH::RXMeshAttribute<T>              new_geo_dist,
+        const RXMESH::RXMeshAttribute<T>        old_geo_dist,
+        const RXMESH::RXMeshAttribute<uint32_t> toplesets,
+        const uint32_t                          band_start,
+        const uint32_t                          band_end,
+        uint32_t*                               d_error,
+        const T                                 infinity_val,
+        const T                                 error_tol)
+    {
+        using namespace RXMESH;
+
+        auto in_active_set = [&](uint32_t p_id) {
+            uint32_t my_band = toplesets(p_id);
+            return my_band >= band_start && my_band < band_end;
+        };
+
+        auto geo_lambda = [&](uint32_t p_id, RXMeshIterator& iter) {
+            // this vertex (p_id) update_band
+            uint32_t my_band = toplesets(p_id);
+            if (!in_active_set(p_id)) return;
+
+            // this is the last vertex in the one-ring (before r_id)
+            uint32_t q_id = iter.back();
+
+            // one-ring enumeration
+            T current_dist = old_geo_dist(p_id);
+            T new_dist = current_dist;
+            for (uint32_t v = 0; v < iter.size(); ++v) {
+                // the current one ring vertex
+                uint32_t r_id = iter[v];
+
+                T dist = update_step(p_id, q_id, r_id, old_geo_dist, coords,
+                                    infinity_val);
+                if (dist < new_dist) {
+                    new_dist = dist;
+                }
+                q_id = r_id;
+            }
+
+            new_geo_dist(p_id) = new_dist;
+            // update our distance
+            if (my_band == band_start) {
+                T error = fabs(new_dist - current_dist) / current_dist;
+                if (error < error_tol) {
+                    atomicAdd(d_error, 1);
+                }
+            }
+        };
+
+
+        query_block_dispatcher<Op::VV, blockThreads>(context, geo_lambda);
+    }
 }

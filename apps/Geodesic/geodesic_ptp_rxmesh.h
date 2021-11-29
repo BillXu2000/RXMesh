@@ -3,6 +3,7 @@
 #include "rxmesh/rxmesh_static.h"
 #include "rxmesh/util/report.h"
 #include "rxmesh/util/timer.h"
+#include <iostream>
 
 constexpr float EPS = 10e-6;
 
@@ -14,7 +15,8 @@ inline bool geodesic_rxmesh(RXMESH::RXMeshStatic<patchSize>&    rxmesh_static,
                             const RXMESH::RXMeshAttribute<T>&   ground_truth,
                             const std::vector<uint32_t>&        h_sorted_index,
                             const std::vector<uint32_t>&        h_limits,
-                            const RXMESH::RXMeshAttribute<uint32_t>& toplesets)
+                            const RXMESH::RXMeshAttribute<uint32_t>& toplesets,
+                            bool opt)
 {
     using namespace RXMESH;
     constexpr uint32_t blockThreads = 256;
@@ -92,11 +94,20 @@ inline bool geodesic_rxmesh(RXMESH::RXMeshStatic<patchSize>&    rxmesh_static,
         }
 
         // compute new geodesic
-        relax_ptp_rxmesh<T, blockThreads>
-            <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
-                rxmesh_static.get_context(), input_coord, *double_buffer[!d],
-                *double_buffer[d], toplesets, i, j, d_error,
-                std::numeric_limits<T>::infinity(), T(1e-3));
+        if (opt) {
+            bx2k::relax_ptp_rxmesh<T, blockThreads>
+                <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
+                    rxmesh_static.get_context(), input_coord, *double_buffer[!d],
+                    *double_buffer[d], toplesets, i, j, d_error,
+                    std::numeric_limits<T>::infinity(), T(1e-3));
+        }
+        else {
+            relax_ptp_rxmesh<T, blockThreads>
+                <<<launch_box.blocks, blockThreads, launch_box.smem_bytes_dyn>>>(
+                    rxmesh_static.get_context(), input_coord, *double_buffer[!d],
+                    *double_buffer[d], toplesets, i, j, d_error,
+                    std::numeric_limits<T>::infinity(), T(1e-3));
+        }
 
         CUDA_ERROR(cudaMemcpy(&h_error, d_error, sizeof(uint32_t),
                               cudaMemcpyDeviceToHost));
@@ -104,6 +115,7 @@ inline bool geodesic_rxmesh(RXMESH::RXMeshStatic<patchSize>&    rxmesh_static,
 
 
         const uint32_t n_cond = h_limits[i + 1] - h_limits[i];
+        //std::cerr << i << " " << j << " " << n_cond << ": i, j, n_cond\n";
 
         if (n_cond == h_error) {
             i++;
@@ -114,6 +126,7 @@ inline bool geodesic_rxmesh(RXMESH::RXMeshStatic<patchSize>&    rxmesh_static,
 
         d = !d;
     }
+    std::cerr << iter << " : iter\n";
 
     timer.stop();
     CUDA_ERROR(cudaDeviceSynchronize());
@@ -123,11 +136,18 @@ inline bool geodesic_rxmesh(RXMESH::RXMeshStatic<patchSize>&    rxmesh_static,
     // verify
     rxmesh_geo.copy(*double_buffer[d], RXMESH::DEVICE, RXMESH::HOST);
     T err = 0;
+    float sum = 0, gt = 0;
+    int num = 0;
     for (uint32_t i = 0; i < ground_truth.get_num_mesh_elements(); ++i) {
         if (ground_truth(i) > EPS) {
             err += std::abs(rxmesh_geo(i) - ground_truth(i)) / ground_truth(i);
+            sum += rxmesh_geo(i);
+            gt += ground_truth(i);
+            num++;
         }
     }
+    std::cerr << sum / num << ": mean\n";
+    std::cerr << gt / num << ": gt mean\n";
     err /= T(ground_truth.get_num_mesh_elements());
     bool is_passed = (err < 10E-2);
 

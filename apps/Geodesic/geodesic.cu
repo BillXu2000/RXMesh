@@ -24,6 +24,7 @@ struct arg
     bool        shuffle = false;
     bool        sort = false;
     uint32_t    num_seeds = 1;
+    bool opt = false;
 
 } Arg;
 
@@ -81,8 +82,9 @@ TEST(App, GEODESIC)
     std::uniform_int_distribution<std::mt19937::result_type> dist(
         0, rxmesh_static.get_num_vertices());
     for (auto& s : h_seeds) {
-        s = dist(rng);
+        //s = dist(rng);
         // s = 0;
+        s = 233;
     }
 
 
@@ -115,7 +117,7 @@ TEST(App, GEODESIC)
 
     //*** RXMesh Impl
     EXPECT_TRUE(geodesic_rxmesh(rxmesh_static, Faces, Verts, h_seeds,
-                                ground_truth, sorted_index, limits, toplesets))
+                                ground_truth, sorted_index, limits, toplesets, Arg.opt))
         << "RXMesh failed!!";
 
 
@@ -169,6 +171,9 @@ int main(int argc, char** argv)
         if (cmd_option_exists(argv, argc + argv, "-device_id")) {
             Arg.device_id =
                 atoi(get_cmd_option(argv, argv + argc, "-device_id"));
+        }
+        if (cmd_option_exists(argv, argc + argv, "-opt")) {
+            Arg.opt = true;
         }
         // if (cmd_option_exists(argv, argc + argv, "-num_seeds")) {
         //    Arg.num_seeds =
