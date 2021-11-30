@@ -16,12 +16,14 @@ struct arg
 {
     std::string obj_file_name = STRINGIFY(INPUT_DIR) "sphere3.obj";
     std::string output_folder = STRINGIFY(OUTPUT_DIR);
-    uint32_t    num_run = 1;
+    uint32_t    num_run = 200;
     uint32_t    device_id = 0;
     char**      argv;
     int         argc;
     bool        shuffle = false;
     bool        sort = false;
+    bool        hardwired = false;
+    bool        rxmesh = false;
 } Arg;
 
 #include "vertex_normal_hardwired.cuh"
@@ -152,10 +154,10 @@ TEST(Apps, VertexNormal)
     vertex_normal_ref(Faces, Verts, vertex_normal_gold);
 
     //*** RXMesh Impl
-    vertex_normal_rxmesh(rxmesh_static, Verts, vertex_normal_gold);
+    if (Arg.rxmesh) vertex_normal_rxmesh(rxmesh_static, Verts, vertex_normal_gold);
 
     //*** Hardwired Impl
-    vertex_normal_hardwired(Faces, Verts, vertex_normal_gold);
+    if (Arg.hardwired) vertex_normal_hardwired(Faces, Verts, vertex_normal_gold);
 }
 
 int main(int argc, char** argv)
@@ -206,6 +208,12 @@ int main(int argc, char** argv)
         }
         if (cmd_option_exists(argv, argc + argv, "-p")) {
             Arg.sort = true;
+        }
+        if (cmd_option_exists(argv, argc + argv, "-hardwired")) {
+            Arg.hardwired = true;
+        }
+        if (cmd_option_exists(argv, argc + argv, "-rxmesh")) {
+            Arg.rxmesh = true;
         }
     }
 
