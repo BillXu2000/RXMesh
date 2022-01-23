@@ -114,8 +114,10 @@ inline T update_step(TriMesh&                    mesh,
                  t[1] * t[1] * Q[1][1] - 1);
     T p = (delta + std::sqrt(dis)) / (Q[0][0] + Q[0][1] + Q[1][0] + Q[1][1]);
     T tp[2];
-    tp[0] = t[0] - p;
-    tp[1] = t[1] - p;
+    // tp[0] = t[0] - p;
+    // tp[1] = t[1] - p;
+    tp[0] = t[0] - 1;
+    tp[1] = t[1] - 1;
 
     // OpenMesh::Vec3f
     decltype(X0) n;
