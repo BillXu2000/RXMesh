@@ -110,7 +110,7 @@ set(cxx_flags
 	$<$<CXX_COMPILER_ID:GNU>:-Wall -m64 -fopenmp -O3 -std=c++17 -Wno-unused-function> #Add GCC/Clang-specific compiler flags here
 	)
 set(cuda_flags
-    -Xcompiler=$<$<CXX_COMPILER_ID:GNU>:-Wall -fopenmp -O3 -Wno-unused-function>
+    # -Xcompiler=$<$<CXX_COMPILER_ID:GNU>:-Wall -fopenmp -O3 -Wno-unused-function>
     #Disables warning
     #177-D "function XXX was declared but never referenced"
     -Xcudafe "--display_error_number --diag_suppress=177"
