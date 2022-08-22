@@ -6,3 +6,4 @@ build/
 include/rxmesh/util/git_sha1.cpp
 .vscode/
 results
+bx2k/*.obj
