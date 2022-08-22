@@ -3,6 +3,7 @@
 // Journal of Graphics Tools 4, no. 2 (1999): 1-6.
 
 #include <cuda_profiler_api.h>
+#include <fstream>
 #include "gtest/gtest.h"
 #include "rxmesh/attribute.h"
 #include "rxmesh/rxmesh_static.h"
@@ -120,6 +121,28 @@ TEST(Apps, VertexNormal)
 
 
     RXMeshStatic rxmesh(Faces, false);
+    auto &patch_f = rxmesh.get_patch_f();
+    auto patch_info = rxmesh.get_patch_info();
+    int sum = 0;
+    std::vector<int> f;
+    std::fstream out("color.log", std::fstream::out);
+    for (int i = 0; i < patch_f.size(); i++) {
+        // printf("%d\n", arr.size());
+        // sum += arr.size();
+        sum += patch_info[i].num_owned_faces;
+        for (int j = 0; j < patch_info[i].num_owned_faces; j++) {
+            f.push_back(patch_f[i][j]);
+            out << patch_f[i][j] << " ";
+        }
+        out << "\n";
+    }
+    out.close();
+    sort(f.begin(), f.end());
+    for (int i = 0; i < f.size(); i++) {
+        if (f[i] != i) printf("i = %d, f[i] = %d\n", i, f[i]);
+    }
+    printf("face size = %d, sum = %d\n", Faces.size(), sum);
+    exit(0);
 
     // Serial reference
     std::vector<dataT> vertex_normal_gold(3 * Verts.size());

@@ -188,6 +188,14 @@ class RXMesh
      */
     uint32_t get_edge_id(const uint32_t v0, const uint32_t v1) const;
 
+    std::vector<std::vector<uint32_t>>& get_patch_f() {
+        return m_h_patches_ltog_f;
+    }
+
+    PatchInfo* get_patch_info() {
+        return m_h_patches_info;
+    }
+
    protected:
     virtual ~RXMesh();
 
